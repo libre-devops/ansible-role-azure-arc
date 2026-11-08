@@ -1,0 +1,12 @@
+---
+# Installs and configures the agent, then removes it with state absent. A server that was
+# never connected needs no credentials to remove. No idempotence step: every converge
+# installs and removes again.
+scenario:
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - converge
+    - verify
+    - destroy

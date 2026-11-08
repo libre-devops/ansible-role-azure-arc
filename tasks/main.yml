@@ -1,0 +1,29 @@
+---
+- name: Check the variables and the host
+  ansible.builtin.include_tasks: assert.yml
+
+- name: Install, configure and connect the Azure Connected Machine agent
+  when: azure_arc_state == 'present'
+  block:
+    - name: Configure the packages.microsoft.com repository
+      ansible.builtin.include_tasks: repository.yml
+      when: azure_arc_manage_repository | bool
+
+    - name: Install the azcmagent package
+      ansible.builtin.include_tasks: install.yml
+
+    - name: Apply the local agent settings
+      ansible.builtin.include_tasks: configure.yml
+
+    - name: Connect the server to Azure Arc
+      ansible.builtin.include_tasks: connect.yml
+      when: azure_arc_connect | bool
+
+- name: Disconnect the server and remove the agent
+  when: azure_arc_state == 'absent'
+  block:
+    - name: Disconnect the server from Azure Arc
+      ansible.builtin.include_tasks: disconnect.yml
+
+    - name: Remove the agent
+      ansible.builtin.include_tasks: uninstall.yml

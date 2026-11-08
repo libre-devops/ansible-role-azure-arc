@@ -1,0 +1,38 @@
+---
+galaxy_info:
+  namespace: libre_devops
+  role_name: azure_arc
+  author: Craig Thacker
+  company: Libre DevOps
+  description: >-
+    Install, lock down, connect and disconnect the Azure Connected Machine agent (Azure Arc)
+    on Linux, from the signed packages.microsoft.com repository, with no Azure SDK on the
+    control node
+  license: MIT
+  min_ansible_version: "2.16"
+  issue_tracker_url: https://github.com/libre-devops/ansible-role-azure-arc/issues
+  platforms:
+    - name: EL
+      versions:
+        - "8"
+        - "9"
+        - "10"
+    - name: Debian
+      versions:
+        - trixie
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+    - name: SLES
+      versions:
+        - "15"
+  galaxy_tags:
+    - azure
+    - arc
+    - azurearc
+    - azcmagent
+    - hybrid
+    - microsoft
+
+dependencies: []

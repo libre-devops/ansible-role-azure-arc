@@ -1,0 +1,12 @@
+{{ ansible_managed | comment }}
+# The same repository id as the file in Microsoft's packages-microsoft-prod package, so
+# other roles or a manual setup update this definition instead of adding a second one.
+[packages-microsoft-com-{{ __azure_arc_repo_channel }}]
+name={{ __azure_arc_rpm_repo_names[__azure_arc_repo_channel] }}
+baseurl={{ azure_arc_repository_url | regex_replace('/+$', '') }}/{{ __azure_arc_repository_path }}/{{ __azure_arc_repo_channel }}/
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey={% for key in __azure_arc_gpg_keys %}file://{{ __azure_arc_rpm_key_dir }}/{{ key.file }}{{ ' ' if not loop.last }}{% endfor %}
+
+sslverify=1

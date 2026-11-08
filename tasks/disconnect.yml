@@ -1,0 +1,91 @@
+---
+# azcmagent disconnect deletes the Azure Arc resource and resets the local agent. With
+# azure_arc_disconnect_local_only it only resets the agent (--force-local-only), for when the
+# resource is already gone. Credentials go through a root-only --config file, as for connect.
+
+- name: Check whether the agent is installed
+  ansible.builtin.stat:
+    path: /opt/azcmagent/bin/azcmagent
+  register: __azure_arc_binary
+
+- name: Read the agent status
+  ansible.builtin.command:
+    cmd: azcmagent show --json
+  register: __azure_arc_show
+  changed_when: false
+  check_mode: false
+  when: __azure_arc_binary.stat.exists
+
+- name: Check the credentials for the chosen sign-in method
+  ansible.builtin.include_tasks: assert_credentials.yml
+  when:
+    - __azure_arc_binary.stat.exists
+    - (__azure_arc_show.stdout | from_json).resourceId | default('') | length > 0
+    - not azure_arc_disconnect_local_only | bool
+
+- name: Disconnect the server
+  when:
+    - __azure_arc_binary.stat.exists
+    - (__azure_arc_show.stdout | from_json).resourceId | default('') | length > 0
+    - not ansible_check_mode
+  block:
+    - name: Create a private working directory
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: azure_arc.
+      register: __azure_arc_workdir
+
+    - name: Copy the service principal certificate
+      ansible.builtin.copy:
+        src: "{{ azure_arc_service_principal_certificate_file }}"
+        dest: "{{ __azure_arc_workdir.path }}/{{ azure_arc_service_principal_certificate_file | basename }}"
+        owner: root
+        group: root
+        mode: "0600"
+      diff: false
+      no_log: true
+      when:
+        - not azure_arc_disconnect_local_only | bool
+        - azure_arc_auth_method == 'service_principal_certificate'
+
+    - name: Write the disconnect settings and credentials
+      ansible.builtin.copy:
+        content: >-
+          {{ ({'force-local-only': true} if azure_arc_disconnect_local_only | bool
+              else lookup('ansible.builtin.template', 'auth_arguments.json.j2') | from_json)
+             | to_nice_json(indent=2) }}
+        dest: "{{ __azure_arc_workdir.path }}/disconnect.json"
+        owner: root
+        group: root
+        mode: "0600"
+      diff: false
+      no_log: true
+
+    - name: Run azcmagent disconnect
+      ansible.builtin.command:
+        argv:
+          - azcmagent
+          - disconnect
+          - --config
+          - "{{ __azure_arc_workdir.path }}/disconnect.json"
+      register: __azure_arc_disconnect
+      changed_when: __azure_arc_disconnect.rc == 0
+      failed_when: false
+
+  always:
+    - name: Delete the working directory and the credentials in it
+      ansible.builtin.file:
+        path: "{{ __azure_arc_workdir.path }}"
+        state: absent
+      when: __azure_arc_workdir.path is defined
+
+- name: Check azcmagent disconnect worked
+  ansible.builtin.assert:
+    that:
+      - __azure_arc_disconnect.rc == 0
+    fail_msg: >-
+      azcmagent disconnect failed with exit code {{ __azure_arc_disconnect.rc }}:
+      {{ (__azure_arc_disconnect.stdout_lines + __azure_arc_disconnect.stderr_lines) | select('search', 'AZCM|error|Error|fatal') | list | join(' ') }}.
+      If the Azure resource was already deleted, set azure_arc_disconnect_local_only to true.
+    quiet: true
+  when: __azure_arc_disconnect is not skipped and __azure_arc_disconnect.rc is defined

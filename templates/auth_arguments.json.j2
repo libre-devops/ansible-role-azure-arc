@@ -1,0 +1,12 @@
+{#- azcmagent sign-in arguments by flag name, for the --config file. -#}
+{%- if azure_arc_auth_method == 'service_principal_secret' -%}
+{{ {'service-principal-id': azure_arc_service_principal_id,
+    'service-principal-secret': azure_arc_service_principal_secret,
+    'tenant-id': azure_arc_tenant_id} | to_json }}
+{%- elif azure_arc_auth_method == 'service_principal_certificate' -%}
+{{ {'service-principal-id': azure_arc_service_principal_id,
+    'service-principal-cert': __azure_arc_workdir.path ~ '/' ~ (azure_arc_service_principal_certificate_file | basename),
+    'tenant-id': azure_arc_tenant_id} | to_json }}
+{%- else -%}
+{{ {'access-token': azure_arc_access_token} | to_json }}
+{%- endif -%}

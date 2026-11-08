@@ -1,0 +1,98 @@
+---
+# Internal values. Not meant to be overridden.
+
+__azure_arc_supported_os_families:
+  - RedHat
+  - Debian
+  - Suse
+
+__azure_arc_supported_architectures:
+  - x86_64
+  - aarch64
+
+# Microsoft's signing keys for packages.microsoft.com. Repositories for RHEL 10, SLES 16,
+# Debian 13, Ubuntu 26.04 and newer Fedora are signed with the 2025 key, older ones with the
+# original key. Both are installed so one definition works everywhere.
+__azure_arc_gpg_keys:
+  - file: microsoft.asc
+    fingerprint: BC528686B50D79E339D3721CEB3E94ADBE1229CF
+  - file: microsoft-2025.asc
+    fingerprint: AA86F75E427A19DD33346403EE4D7792F748182B
+__azure_arc_rpm_key_dir: /etc/pki/rpm-gpg
+__azure_arc_apt_keyring: /usr/share/keyrings/microsoft-prod.gpg
+
+# The agent is only published on the prod channel.
+__azure_arc_repo_channel: prod
+__azure_arc_rpm_repo_dir: "{{ '/etc/zypp/repos.d' if ansible_facts['pkg_mgr'] == 'zypper' else '/etc/yum.repos.d' }}"
+__azure_arc_rpm_repo_names:
+  prod: Microsoft Production
+
+# packages.microsoft.com path for this host. Rocky, Alma, Oracle and CentOS Stream use the
+# RHEL repositories, as in Microsoft's install script. Kept identical to the mapping in
+# libre_devops.mde_linux, so both roles write the same repository file.
+__azure_arc_detected_repository_path: >-
+  {%- set distribution = ansible_facts['distribution'] -%}
+  {%- set major = ansible_facts['distribution_major_version'] -%}
+  {%- if ansible_facts['os_family'] == 'Debian' -%}
+  {{ 'ubuntu/' ~ ansible_facts['distribution_version'] if distribution == 'Ubuntu' else 'debian/' ~ major }}
+  {%- elif ansible_facts['os_family'] == 'Suse' -%}
+  sles/{{ major }}
+  {%- elif distribution == 'Amazon' -%}
+  amazonlinux/{{ major }}
+  {%- else -%}
+  rhel/{{ major }}
+  {%- endif -%}
+__azure_arc_repository_path: "{{ azure_arc_repository_path | default('', true) or __azure_arc_detected_repository_path }}"
+
+# Package name with an optional version, in the syntax of the host's package manager.
+__azure_arc_package: >-
+  {{ 'azcmagent' if not azure_arc_version
+     else ('azcmagent=' ~ azure_arc_version if ansible_facts['pkg_mgr'] == 'apt' else 'azcmagent-' ~ azure_arc_version) }}
+
+# azcmagent connect arguments, by their flag names, for the --config file.
+__azure_arc_tags_argument: >-
+  {%- for key, value in azure_arc_tags | dictsort -%}
+  {{ key }}={{ ("'" ~ value ~ "'") if ' ' in (value | string) else value }}{{ ',' if not loop.last }}
+  {%- endfor -%}
+__azure_arc_location_arguments:
+  tenant-id: "{{ azure_arc_tenant_id }}"
+  subscription-id: "{{ azure_arc_subscription_id }}"
+  resource-group: "{{ azure_arc_resource_group }}"
+  location: "{{ azure_arc_location }}"
+  cloud: "{{ azure_arc_cloud }}"
+__azure_arc_optional_arguments:
+  resource-name: "{{ azure_arc_resource_name }}"
+  tags: "{{ __azure_arc_tags_argument }}"
+  private-link-scope: "{{ azure_arc_private_link_scope_id }}"
+  gateway-id: "{{ azure_arc_gateway_id }}"
+
+# Local agent settings the role was asked to manage (null means leave alone), with values in
+# the form azcmagent config list reports them: "true" or "false" for booleans, lists of
+# strings for list settings, strings for the rest.
+__azure_arc_config_desired_json: >-
+  {%- set requested = {
+        'extensions.enabled': azure_arc_extensions_enabled | default(none),
+        'extensions.allowlist': azure_arc_extensions_allowlist | default(none),
+        'extensions.blocklist': azure_arc_extensions_blocklist | default(none),
+        'guestconfiguration.enabled': azure_arc_guest_configuration_enabled | default(none),
+        'incomingconnections.enabled': azure_arc_incoming_connections_enabled | default(none),
+        'incomingconnections.ports': azure_arc_incoming_connections_ports | default(none),
+        'proxy.url': azure_arc_proxy_url | default(none),
+        'proxy.bypass': azure_arc_proxy_bypass | default(none),
+      } | combine(azure_arc_config_extra) -%}
+  {
+  {%- for key, value in requested | dictsort if value is not none -%}
+  {{ key | to_json }}: {{
+       (value | string | lower) | to_json if value is boolean
+       else ((value | map('string') | list) | to_json if (value is iterable and value is not string and value is not mapping)
+       else (value | string) | to_json) }}{{ ',' if not loop.last }}
+  {%- endfor -%}
+  }
+__azure_arc_config_desired: "{{ __azure_arc_config_desired_json | from_json }}"
+
+# Settings that cannot be changed while the agent is in monitor mode.
+__azure_arc_full_mode_only:
+  - azure_arc_extensions_allowlist
+  - azure_arc_extensions_blocklist
+  - azure_arc_guest_configuration_enabled
+__azure_arc_full_mode_only_set: "{{ __azure_arc_full_mode_only | select('in', vars) | list }}"

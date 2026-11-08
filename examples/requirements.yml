@@ -1,0 +1,12 @@
+---
+# Install the role straight from GitHub, pinned to a release tag:
+#   ansible-galaxy install -r requirements.yml
+roles:
+  - name: libre_devops.azure_arc
+    src: https://github.com/libre-devops/ansible-role-azure-arc.git
+    scm: git
+    version: 1.0.0
+
+# Needed on SUSE hosts only, where ansible.builtin.package hands over to community.general.zypper.
+collections:
+  - name: community.general

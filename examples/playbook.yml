@@ -1,0 +1,11 @@
+---
+# Example used by `just live`. The target for each server (tenant, subscription, resource
+# group, region, tags) comes from the inventory, so one play onboards servers to as many
+# subscriptions and resource groups as the inventory describes. See examples/inventory.
+#
+#   just live examples/inventory/hosts.yml --ask-vault-pass
+- name: Connect Linux servers to Azure Arc
+  hosts: arc_servers
+  become: true
+  roles:
+    - role: libre_devops.azure_arc

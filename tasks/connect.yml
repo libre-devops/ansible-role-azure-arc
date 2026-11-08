@@ -1,0 +1,138 @@
+---
+# Connects the server with azcmagent connect --config. The credentials go into a root-only
+# file in a temporary directory, as Microsoft recommends, so they never appear on a command
+# line or in a process list. The directory is deleted whether the connection works or not.
+#
+# A server already connected where the variables say is left alone. A server connected
+# somewhere else (another tenant, subscription, resource group, region, cloud or name) stops
+# the role, unless azure_arc_reconnect is true: then it is disconnected first, which deletes
+# the old Azure resource unless azure_arc_disconnect_local_only is true, and connected again.
+
+- name: Read the agent status
+  ansible.builtin.command:
+    cmd: azcmagent show --json
+  register: __azure_arc_show
+  changed_when: false
+  check_mode: false
+
+- name: Compare the current connection with the target
+  ansible.builtin.set_fact:
+    __azure_arc_connected: "{{ (__azure_arc_show.stdout | from_json).resourceId | default('') | length > 0 }}"
+    __azure_arc_on_target: >-
+      {%- set status = __azure_arc_show.stdout | from_json -%}
+      {{ status.tenantId | default('') | lower == azure_arc_tenant_id | lower
+         and status.subscriptionId | default('') | lower == azure_arc_subscription_id | lower
+         and status.resourceGroup | default('') | lower == azure_arc_resource_group | lower
+         and status.location | default('') | lower | replace(' ', '') == azure_arc_location | lower | replace(' ', '')
+         and status.cloud | default('') | lower == azure_arc_cloud | lower
+         and (azure_arc_resource_name | length == 0 or status.resourceName | default('') | lower == azure_arc_resource_name | lower) }}
+    __azure_arc_current_resource: "{{ (__azure_arc_show.stdout | from_json).resourceId | default('') }}"
+
+- name: Stop if the server is connected somewhere else
+  ansible.builtin.assert:
+    that:
+      - __azure_arc_on_target | bool
+    fail_msg: >-
+      This server is already connected as {{ __azure_arc_current_resource }}, which is not the
+      target in the variables. Set azure_arc_reconnect to true to disconnect it and connect it
+      to the new target, or run the role with azure_arc_state: absent first.
+    quiet: true
+  when:
+    - __azure_arc_connected | bool
+    - not azure_arc_reconnect | bool
+
+- name: Disconnect the server from its current target
+  ansible.builtin.include_tasks: disconnect.yml
+  when:
+    - __azure_arc_connected | bool
+    - not __azure_arc_on_target | bool
+    - azure_arc_reconnect | bool
+
+- name: Read the agent status before connecting
+  ansible.builtin.command:
+    cmd: azcmagent show --json
+  register: __azure_arc_show
+  changed_when: false
+  check_mode: false
+
+- name: Note the agent status
+  ansible.builtin.set_fact:
+    __azure_arc_status: "{{ __azure_arc_show.stdout | from_json }}"
+
+- name: Connect the server
+  when:
+    - __azure_arc_status.resourceId | default('') | length == 0
+    - not ansible_check_mode
+  block:
+    - name: Create a private working directory
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: azure_arc.
+      register: __azure_arc_workdir
+
+    - name: Copy the service principal certificate
+      ansible.builtin.copy:
+        src: "{{ azure_arc_service_principal_certificate_file }}"
+        dest: "{{ __azure_arc_workdir.path }}/{{ azure_arc_service_principal_certificate_file | basename }}"
+        owner: root
+        group: root
+        mode: "0600"
+      diff: false
+      no_log: true
+      when: azure_arc_auth_method == 'service_principal_certificate'
+
+    - name: Write the connection settings and credentials
+      ansible.builtin.copy:
+        content: >-
+          {{ __azure_arc_location_arguments
+             | combine(__azure_arc_optional_arguments | dict2items | rejectattr('value', 'equalto', '') | items2dict)
+             | combine(__azure_arc_auth_arguments)
+             | to_nice_json(indent=2) }}
+        dest: "{{ __azure_arc_workdir.path }}/connect.json"
+        owner: root
+        group: root
+        mode: "0600"
+      diff: false
+      no_log: true
+      vars:
+        __azure_arc_auth_arguments: "{{ lookup('ansible.builtin.template', 'auth_arguments.json.j2') | from_json }}"
+
+    - name: Run azcmagent connect
+      ansible.builtin.command:
+        argv:
+          - azcmagent
+          - connect
+          - --config
+          - "{{ __azure_arc_workdir.path }}/connect.json"
+      register: __azure_arc_connect
+      changed_when: __azure_arc_connect.rc == 0
+      failed_when: false
+
+  always:
+    - name: Delete the working directory and the credentials in it
+      ansible.builtin.file:
+        path: "{{ __azure_arc_workdir.path }}"
+        state: absent
+      when: __azure_arc_workdir.path is defined
+
+- name: Check azcmagent connect worked
+  ansible.builtin.assert:
+    that:
+      - __azure_arc_connect.rc == 0
+    fail_msg: >-
+      azcmagent connect failed with exit code {{ __azure_arc_connect.rc }}:
+      {{ (__azure_arc_connect.stdout_lines + __azure_arc_connect.stderr_lines) | select('search', 'AZCM|error|Error|fatal') | list | join(' ') }}.
+      Error codes are explained at https://aka.ms/arc/azcmerror
+    quiet: true
+  when: __azure_arc_connect is not skipped and __azure_arc_connect.rc is defined
+
+- name: Read the agent status after connecting
+  ansible.builtin.command:
+    cmd: azcmagent show --json
+  register: __azure_arc_show_after
+  changed_when: false
+  check_mode: false
+
+- name: Keep the Azure resource ID as a fact
+  ansible.builtin.set_fact:
+    azure_arc_resource_id: "{{ (__azure_arc_show_after.stdout | from_json).resourceId | default('') }}"

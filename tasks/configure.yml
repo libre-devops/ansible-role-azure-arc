@@ -1,0 +1,59 @@
+---
+# Applies the local agent settings with azcmagent config. Only settings that differ from what
+# the agent reports are changed, so a second run changes nothing. Microsoft documents these
+# controls as local only: nobody can change them from Azure, not even an Owner.
+#
+# The mode goes first, because switching to monitor mode replaces the extension allowlist and
+# turns guest configuration off, and switching back to full mode leaves that allowlist in place.
+
+- name: Read the agent settings
+  ansible.builtin.command:
+    cmd: azcmagent config list --json
+  register: __azure_arc_config_list
+  changed_when: false
+  check_mode: false
+
+- name: Set the agent mode
+  ansible.builtin.command:
+    argv: [azcmagent, config, set, config.mode, "{{ azure_arc_config_mode | default('') }}"]
+  changed_when: true
+  when:
+    - azure_arc_config_mode is defined
+    - (__azure_arc_config_list.stdout | from_json).LocalSettings
+      | selectattr('Key', 'equalto', 'config.mode') | map(attribute='Value') | first | default('') != azure_arc_config_mode
+
+# Read again, because a mode change also changes other settings.
+- name: Read the agent settings in the current mode
+  ansible.builtin.command:
+    cmd: azcmagent config list --json
+  register: __azure_arc_config_list_after_mode
+  changed_when: false
+  check_mode: false
+
+- name: Work out which settings need changing
+  ansible.builtin.set_fact:
+    __azure_arc_config_changes_json: >-
+      {%- set current = (__azure_arc_config_list_after_mode.stdout | from_json).LocalSettings | items2dict(key_name='Key', value_name='Value') -%}
+      {%- set changes = namespace(found=[]) -%}
+      {%- for key, value in __azure_arc_config_desired | dictsort -%}
+      {%- set have = current[key] if key in current else none -%}
+      {%- if value is string -%}
+      {%- set differs = have != value -%}
+      {%- else -%}
+      {%- set differs = have is none or have is string or (have | sort) != (value | sort) -%}
+      {%- endif -%}
+      {%- if differs -%}
+      {%- set changes.found = changes.found + [{'key': key, 'value': value}] -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ changes.found | to_json }}
+
+- name: Change the settings that differ
+  ansible.builtin.command:
+    argv: >-
+      {{ ['azcmagent', 'config', 'clear', item.key] if (item.value | length == 0)
+         else ['azcmagent', 'config', 'set', item.key, (item.value if item.value is string else item.value | join(','))] }}
+  changed_when: true
+  loop: "{{ __azure_arc_config_changes_json | from_json }}"
+  loop_control:
+    label: "{{ item.key }}"

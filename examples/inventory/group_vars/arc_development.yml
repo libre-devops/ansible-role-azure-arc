@@ -1,0 +1,8 @@
+---
+# A different subscription, resource group and region from production.
+azure_arc_subscription_id: 33333333-3333-3333-3333-333333333333
+azure_arc_resource_group: rg-arc-dev-ukw
+azure_arc_location: ukwest
+azure_arc_tags:
+  Environment: Development
+  Owner: Platform Team

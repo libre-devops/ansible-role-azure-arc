@@ -1,0 +1,22 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Read the agent settings
+      ansible.builtin.command:
+        cmd: azcmagent config list --json
+      register: __verify_config
+      changed_when: false
+
+    - name: Check monitor mode is on and remote access is off
+      vars:
+        settings: "{{ (__verify_config.stdout | from_json).LocalSettings | items2dict(key_name='Key', value_name='Value') }}"
+      ansible.builtin.assert:
+        that:
+          - settings['config.mode'] == 'monitor'
+          - settings['guestconfiguration.enabled'] == 'false'
+          - settings['incomingconnections.enabled'] == 'false'
+          - "'Microsoft.Azure.Monitor/AzureMonitorLinuxAgent' in settings['extensions.allowlist']"
+        quiet: true

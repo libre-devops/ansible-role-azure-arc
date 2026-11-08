@@ -1,0 +1,7 @@
+---
+azure_arc_subscription_id: 22222222-2222-2222-2222-222222222222
+azure_arc_resource_group: rg-arc-prd-uks
+azure_arc_location: uksouth
+azure_arc_tags:
+  Environment: Production
+  Owner: Platform Team

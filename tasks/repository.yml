@@ -1,0 +1,62 @@
+---
+# The signing keys ship with the role, so nothing is fetched on trust at run time. rpm_key
+# checks each fingerprint before importing it.
+
+- name: Configure the repository for dnf, yum or zypper
+  when: ansible_facts['pkg_mgr'] != 'apt'
+  block:
+    - name: Create the key directory
+      ansible.builtin.file:
+        path: "{{ __azure_arc_rpm_key_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Copy the Microsoft signing keys
+      ansible.builtin.copy:
+        src: "{{ item.file }}"
+        dest: "{{ __azure_arc_rpm_key_dir }}/{{ item.file }}"
+        owner: root
+        group: root
+        mode: "0644"
+      loop: "{{ __azure_arc_gpg_keys }}"
+      loop_control:
+        label: "{{ item.file }}"
+
+    - name: Import the Microsoft signing keys
+      ansible.builtin.rpm_key:
+        key: "{{ __azure_arc_rpm_key_dir }}/{{ item.file }}"
+        fingerprint: "{{ item.fingerprint }}"
+        state: present
+      loop: "{{ __azure_arc_gpg_keys }}"
+      loop_control:
+        label: "{{ item.fingerprint }}"
+
+    - name: Write the repository definition
+      ansible.builtin.template:
+        src: microsoft.repo.j2
+        dest: "{{ __azure_arc_rpm_repo_dir }}/microsoft-{{ __azure_arc_repo_channel }}.repo"
+        owner: root
+        group: root
+        mode: "0644"
+
+- name: Configure the repository for apt
+  when: ansible_facts['pkg_mgr'] == 'apt'
+  block:
+    - name: Copy the Microsoft keyring
+      ansible.builtin.copy:
+        src: microsoft-prod.gpg
+        dest: "{{ __azure_arc_apt_keyring }}"
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Write the source list
+      ansible.builtin.template:
+        src: microsoft.list.j2
+        dest: /etc/apt/sources.list.d/microsoft-{{ __azure_arc_repo_channel }}.list
+        owner: root
+        group: root
+        mode: "0644"
+      register: __azure_arc_apt_source

@@ -1,0 +1,62 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Read the installed packages
+      ansible.builtin.package_facts:
+
+    - name: Check azcmagent is installed
+      ansible.builtin.assert:
+        that:
+          - "'azcmagent' in ansible_facts.packages"
+        quiet: true
+
+    - name: Read the repository definition
+      ansible.builtin.slurp:
+        src: >-
+          {{ '/etc/apt/sources.list.d/microsoft-prod.list' if ansible_facts['pkg_mgr'] == 'apt'
+             else ('/etc/zypp/repos.d' if ansible_facts['pkg_mgr'] == 'zypper' else '/etc/yum.repos.d') ~ '/microsoft-prod.repo' }}
+      register: __verify_repo
+
+    - name: Check the repository is packages.microsoft.com with signature checks on
+      ansible.builtin.assert:
+        that: >-
+          {{ ['signed-by=/usr/share/keyrings/microsoft-prod.gpg' in __verify_repo.content | b64decode]
+             if ansible_facts['pkg_mgr'] == 'apt'
+             else ['repo_gpgcheck=1' in __verify_repo.content | b64decode, '[packages-microsoft-com-prod]' in __verify_repo.content | b64decode] }}
+        quiet: true
+
+    - name: Read the agent settings
+      ansible.builtin.command:
+        cmd: azcmagent config list --json
+      register: __verify_config
+      changed_when: false
+
+    - name: Check the settings were applied
+      vars:
+        settings: "{{ (__verify_config.stdout | from_json).LocalSettings | items2dict(key_name='Key', value_name='Value') }}"
+      ansible.builtin.assert:
+        that:
+          - settings['config.mode'] == 'full'
+          - settings['extensions.allowlist'] | sort == ['Microsoft.Azure.AzureDefenderForServers/MDE.Linux', 'Microsoft.Azure.Monitor/AzureMonitorLinuxAgent']
+          - settings['guestconfiguration.enabled'] == 'false'
+          - settings['incomingconnections.ports'] == ['22']
+          - settings['proxy.url'] == 'http://proxy.example.com:3128'
+          - settings['proxy.bypass'] | sort == ['AAD', 'ARM']
+          - settings['extensions.agent.cpulimit'] == '10'
+        quiet: true
+
+    - name: Read the agent status
+      ansible.builtin.command:
+        cmd: azcmagent show --json
+      register: __verify_show
+      changed_when: false
+
+    - name: Check the agent runs and is not connected
+      ansible.builtin.assert:
+        that:
+          - (__verify_show.stdout | from_json).status == 'Disconnected'
+          - (__verify_show.stdout | from_json).services | selectattr('serviceName', 'equalto', 'himdsd') | map(attribute='status') | first == 'active'
+        quiet: true

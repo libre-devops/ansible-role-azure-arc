@@ -1,0 +1,4 @@
+---
+# One server in the production group, sent to its own resource group with its own name.
+azure_arc_resource_group: rg-arc-prd-uks-data
+azure_arc_resource_name: db01

@@ -1,0 +1,18 @@
+---
+- name: Install and configure the agent without connecting it
+  hosts: all
+  become: true
+  vars:
+    azure_arc_connect: false
+    azure_arc_guest_configuration_enabled: false
+  roles:
+    - role: libre_devops.azure_arc
+
+- name: Remove the agent and its repository
+  hosts: all
+  become: true
+  vars:
+    azure_arc_state: absent
+    azure_arc_remove_repository: true
+  roles:
+    - role: libre_devops.azure_arc

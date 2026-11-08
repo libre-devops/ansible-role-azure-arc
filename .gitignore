@@ -1,0 +1,20 @@
+# Python and tooling
+.venv/
+__pycache__/
+.cache/
+.ansible/
+*.retry
+
+# Editors
+.idea/
+.vscode/
+
+# Never commit credentials, certificates, inventories or vault passwords. The examples use
+# made-up values only.
+*.pem
+*.pfx
+*.p12
+*.key
+inventory.ini
+/inventory.yml
+.vault_pass*

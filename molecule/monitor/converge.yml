@@ -1,0 +1,10 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    azure_arc_connect: false
+    azure_arc_config_mode: monitor
+    azure_arc_incoming_connections_enabled: false
+  roles:
+    - role: libre_devops.azure_arc

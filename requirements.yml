@@ -1,0 +1,8 @@
+---
+# Collections for development and tests. Users of the role only need community.general, and
+# only for SUSE hosts (ansible.builtin.package uses community.general.zypper there).
+collections:
+  - name: community.general
+    version: ">=10.0.0,<12.0.0"
+  - name: containers.podman
+    version: ">=1.16.0,<2.0.0"

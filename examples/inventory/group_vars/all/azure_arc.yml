@@ -1,0 +1,13 @@
+---
+# Settings every server shares: the tenant, the onboarding service principal and the
+# agent lock-down. Encrypt the secret with: ansible-vault encrypt_string --name azure_arc_service_principal_secret
+azure_arc_tenant_id: 00000000-0000-0000-0000-000000000000
+azure_arc_service_principal_id: 11111111-1111-1111-1111-111111111111
+azure_arc_service_principal_secret: "{{ vault_azure_arc_service_principal_secret }}"
+
+# Only the Azure Monitor agent and Defender for Endpoint may be installed as extensions,
+# and guest configuration is off.
+azure_arc_extensions_allowlist:
+  - Microsoft.Azure.Monitor/AzureMonitorLinuxAgent
+  - Microsoft.Azure.AzureDefenderForServers/MDE.Linux
+azure_arc_guest_configuration_enabled: false

@@ -1,0 +1,13 @@
+---
+# Installs the agent and locks it down without connecting it: CI cannot connect a server to
+# Azure, and GitHub's runners are Azure VMs, where Microsoft does not support Azure Arc.
+# Connecting is tested against a real server with the live recipe in the justfile.
+scenario:
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - converge
+    - idempotence
+    - verify
+    - destroy

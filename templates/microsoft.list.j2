@@ -1,0 +1,4 @@
+{{ ansible_managed | comment }}
+# The same line as Microsoft's config/{{ __azure_arc_repository_path }}/{{ __azure_arc_repo_channel }}.list, so other roles or a
+# manual setup update this file instead of adding a second source with a conflicting key.
+deb [arch=amd64,arm64,armhf signed-by={{ __azure_arc_apt_keyring }}] {{ azure_arc_repository_url | regex_replace('/+$', '') }}/{{ __azure_arc_repository_path }}/prod {{ ansible_facts['distribution_release'] if __azure_arc_repo_channel == 'prod' else __azure_arc_repo_channel }} main

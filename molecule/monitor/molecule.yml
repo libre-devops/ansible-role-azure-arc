@@ -1,0 +1,12 @@
+---
+# Puts the agent in monitor mode and switches remote access off, then checks a second run
+# changes nothing.
+scenario:
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - converge
+    - idempotence
+    - verify
+    - destroy

@@ -1,0 +1,165 @@
+---
+argument_specs:
+  main:
+    short_description: Install, lock down, connect and disconnect the Azure Connected Machine agent on Linux
+    description:
+      - Adds the signed packages.microsoft.com repository, installs the azcmagent package,
+        applies the local agent settings (azcmagent config) and connects the server to Azure
+        Arc with a service principal or an access token passed in a root-only configuration
+        file.
+      - The absent state disconnects the server, deleting its Azure resource unless told not
+        to, and removes the agent.
+      - Needs nothing on the control node beyond ansible-core. No Azure SDK, no Azure CLI.
+    author:
+      - Craig Thacker
+    options:
+      azure_arc_state:
+        description: Whether the agent is installed and connected, or disconnected and removed.
+        type: str
+        choices: [present, absent]
+        default: present
+      azure_arc_connect:
+        description: Connect the server. Set to false to install and configure the agent only.
+        type: bool
+        default: true
+      azure_arc_package_state:
+        description: present installs the package if missing. latest also upgrades it.
+        type: str
+        choices: [present, latest]
+        default: present
+      azure_arc_version:
+        description:
+          - Exact agent version to install, as the package manager lists it, for example
+            1.69.03579.1568 on apt or 1.69.03579-1568 on dnf and zypper. Empty installs whichever
+            version the repository offers.
+        type: str
+        default: ""
+      azure_arc_manage_repository:
+        description: Add the packages.microsoft.com repository. Set to false when the host already has a repository that serves azcmagent.
+        type: bool
+        default: true
+      azure_arc_repository_url:
+        description: Base URL of packages.microsoft.com, or of a mirror with the same layout.
+        type: str
+        default: https://packages.microsoft.com
+      azure_arc_repository_path:
+        description: Repository path under the base URL, for example rhel/9 or ubuntu/24.04. Empty works it out from the host's facts.
+        type: str
+        default: ""
+      azure_arc_remove_repository:
+        description: With state absent, also remove the repository definition the role added.
+        type: bool
+        default: false
+      azure_arc_tenant_id:
+        description: Microsoft Entra tenant ID of the subscription.
+        type: str
+        default: ""
+      azure_arc_subscription_id:
+        description: Subscription ID (a GUID, not the name) for the Azure Arc resource.
+        type: str
+        default: ""
+      azure_arc_resource_group:
+        description: Resource group for the Azure Arc resource.
+        type: str
+        default: ""
+      azure_arc_location:
+        description: Azure region for the Azure Arc resource, for example uksouth.
+        type: str
+        default: ""
+      azure_arc_cloud:
+        description: Azure cloud.
+        type: str
+        choices: [AzureCloud, AzureUSGovernment, AzureChinaCloud]
+        default: AzureCloud
+      azure_arc_resource_name:
+        description: Name of the Azure Arc resource. Empty lets the agent use the host name. Cannot be changed later without disconnecting.
+        type: str
+        default: ""
+      azure_arc_tags:
+        description: Tags for the Azure Arc resource, applied when the server connects.
+        type: dict
+        default: {}
+      azure_arc_private_link_scope_id:
+        description: Resource ID of an Azure Arc private link scope, when the server connects through private endpoints.
+        type: str
+        default: ""
+      azure_arc_gateway_id:
+        description: Resource ID of an Azure Arc gateway, when the server connects through one.
+        type: str
+        default: ""
+      azure_arc_auth_method:
+        description: How the agent signs in to connect and disconnect.
+        type: str
+        choices: [service_principal_secret, service_principal_certificate, access_token]
+        default: service_principal_secret
+      azure_arc_service_principal_id:
+        description: Application (client) ID of the onboarding service principal.
+        type: str
+        default: ""
+      azure_arc_service_principal_secret:
+        description: Client secret of the onboarding service principal.
+        type: str
+        default: ""
+        no_log: true
+      azure_arc_service_principal_certificate_file:
+        description:
+          - Path on the control node to the service principal's certificate with its private
+            key, as PEM or PFX without a password. Can be encrypted with Ansible Vault.
+        type: path
+        default: ""
+      azure_arc_access_token:
+        description: A Microsoft Entra access token for Azure Resource Manager. Short-lived.
+        type: str
+        default: ""
+        no_log: true
+      azure_arc_reconnect:
+        description:
+          - When the server is already connected somewhere other than the target, disconnect it
+            and connect it to the target. false stops the role instead.
+        type: bool
+        default: false
+      azure_arc_disconnect_local_only:
+        description: When disconnecting (state absent, or azure_arc_reconnect), reset the agent without deleting the resource in Azure.
+        type: bool
+        default: false
+      azure_arc_config_mode:
+        description:
+          - Agent mode. monitor allows only monitoring and security extensions and turns guest
+            configuration off. Unset leaves it as it is.
+        type: str
+        choices: [full, monitor]
+      azure_arc_extensions_enabled:
+        description: Run the extension manager. Unset leaves it as it is.
+        type: bool
+      azure_arc_extensions_allowlist:
+        description:
+          - Only these extensions (Publisher/Type) may be installed. Allow/None runs the
+            extension manager with nothing allowed. An empty list clears it. Unset leaves it as
+            it is.
+        type: list
+        elements: str
+      azure_arc_extensions_blocklist:
+        description: These extensions (Publisher/Type) may not be installed. An empty list clears it. Unset leaves it as it is.
+        type: list
+        elements: str
+      azure_arc_guest_configuration_enabled:
+        description: Run the guest configuration (machine configuration) agent. Unset leaves it as it is.
+        type: bool
+      azure_arc_incoming_connections_enabled:
+        description: Allow remote access to the server through Azure Arc, such as SSH. Unset leaves it as it is.
+        type: bool
+      azure_arc_incoming_connections_ports:
+        description: Ports remote access may use. An empty list clears it. Unset leaves it as it is.
+        type: list
+        elements: int
+      azure_arc_proxy_url:
+        description: Proxy for the agent, for example http://proxy.example.com:8080. An empty string clears it. Unset leaves it as it is.
+        type: str
+      azure_arc_proxy_bypass:
+        description: Traffic that skips the proxy, for example Arc, AAD or ARM. An empty list clears it. Unset leaves it as it is.
+        type: list
+        elements: str
+      azure_arc_config_extra:
+        description: Any other azcmagent config property, by name, with its value.
+        type: dict
+        default: {}

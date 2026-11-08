@@ -1,0 +1,6 @@
+---
+blank_issues_enabled: false
+contact_links:
+  - name: Azure Arc-enabled servers documentation
+    url: https://learn.microsoft.com/en-us/azure/azure-arc/servers/overview
+    about: Questions about the agent itself, rather than this role.

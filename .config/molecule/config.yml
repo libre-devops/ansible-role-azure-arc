@@ -1,0 +1,75 @@
+---
+# Shared by every scenario under molecule/. Each platform boots systemd as PID 1, because the
+# agent installs and manages systemd services. Pick one with: just test default rhel9
+# (the justfile adds the arc- prefix, which keeps these containers apart from other roles' tests)
+#
+# The platforms follow Microsoft's list of systems that still get new agent versions: Debian
+# 12 and SLES 16 are not on it.
+# Collections come from requirements.yml through "just deps", not from Molecule.
+driver:
+  name: podman
+
+platforms:
+  - name: arc-rhel9
+    image: registry.access.redhat.com/ubi9/ubi-init:latest
+    dockerfile: ../../.config/molecule/Containerfile.j2
+    command: /sbin/init
+    systemd: always
+    # himdsd keeps CAP_SYS_ADMIN, which rootless containers do not grant by default.
+    capabilities:
+      - SYS_ADMIN
+  - name: arc-rocky10
+    image: docker.io/rockylinux/rockylinux:10-ubi-init
+    dockerfile: ../../.config/molecule/Containerfile.j2
+    command: /sbin/init
+    systemd: always
+    # himdsd keeps CAP_SYS_ADMIN, which rootless containers do not grant by default.
+    capabilities:
+      - SYS_ADMIN
+  - name: arc-debian13
+    image: docker.io/library/debian:13
+    dockerfile: ../../.config/molecule/Containerfile.j2
+    command: /sbin/init
+    systemd: always
+    # himdsd keeps CAP_SYS_ADMIN, which rootless containers do not grant by default.
+    capabilities:
+      - SYS_ADMIN
+  - name: arc-ubuntu2404
+    image: docker.io/library/ubuntu:24.04
+    dockerfile: ../../.config/molecule/Containerfile.j2
+    command: /sbin/init
+    systemd: always
+    # himdsd keeps CAP_SYS_ADMIN, which rootless containers do not grant by default.
+    capabilities:
+      - SYS_ADMIN
+  - name: arc-ubuntu2604
+    image: docker.io/library/ubuntu:26.04
+    dockerfile: ../../.config/molecule/Containerfile.j2
+    command: /sbin/init
+    systemd: always
+    # himdsd keeps CAP_SYS_ADMIN, which rootless containers do not grant by default.
+    capabilities:
+      - SYS_ADMIN
+  - name: arc-sles15
+    image: registry.suse.com/bci/bci-init:15.7
+    dockerfile: ../../.config/molecule/Containerfile.j2
+    command: /sbin/init
+    systemd: always
+    # himdsd keeps CAP_SYS_ADMIN, which rootless containers do not grant by default.
+    capabilities:
+      - SYS_ADMIN
+
+provisioner:
+  name: ansible
+  config_options:
+    defaults:
+      callback_result_format: yaml
+      interpreter_python: auto_silent
+  inventory:
+    host_vars:
+      # SLES 15 ships Python 3.6, which ansible-core no longer supports on targets.
+      arc-sles15:
+        ansible_python_interpreter: /usr/bin/python3.11
+
+verifier:
+  name: ansible

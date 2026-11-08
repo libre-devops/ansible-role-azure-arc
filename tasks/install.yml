@@ -1,0 +1,31 @@
+---
+# Refresh straight away after the source list changed, otherwise when older than an hour.
+- name: Refresh the apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: "{{ 0 if (__azure_arc_apt_source | default({}) is changed) else 3600 }}"
+  when: ansible_facts['pkg_mgr'] == 'apt'
+
+# The package's install script writes /etc/cron.d/azcmagent_autoupgrade and fails when the
+# directory is missing, as it is on minimal Debian installs without cron.
+- name: Create /etc/cron.d for the agent's upgrade job
+  ansible.builtin.file:
+    path: /etc/cron.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the azcmagent package
+  ansible.builtin.package:
+    name: "{{ __azure_arc_package }}"
+    state: "{{ azure_arc_package_state }}"
+
+# The package enables the agent's services. azcmagent config stops and disables the extension
+# and guest configuration services when they are switched off, so only the core service is
+# managed here: it must always run.
+- name: Start the agent service and enable it at boot
+  ansible.builtin.systemd_service:
+    name: himdsd
+    state: started
+    enabled: true

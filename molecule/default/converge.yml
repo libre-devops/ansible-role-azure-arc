@@ -1,0 +1,20 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    azure_arc_connect: false
+    azure_arc_extensions_allowlist:
+      - Microsoft.Azure.Monitor/AzureMonitorLinuxAgent
+      - Microsoft.Azure.AzureDefenderForServers/MDE.Linux
+    azure_arc_guest_configuration_enabled: false
+    azure_arc_incoming_connections_ports:
+      - 22
+    azure_arc_proxy_url: http://proxy.example.com:3128
+    azure_arc_proxy_bypass:
+      - AAD
+      - ARM
+    azure_arc_config_extra:
+      extensions.agent.cpulimit: 10
+  roles:
+    - role: libre_devops.azure_arc

@@ -1,0 +1,66 @@
+---
+# Every variable is described in README.md and validated by meta/argument_specs.yml.
+
+# present installs and configures the Azure Connected Machine agent and connects the server
+# to Azure Arc. absent disconnects it (deleting the Azure resource unless
+# azure_arc_disconnect_local_only is true) and removes the agent.
+azure_arc_state: present
+
+# Set to false to install and configure the agent without connecting it, for example to lock
+# the agent down before anyone can connect it, or in a golden image.
+azure_arc_connect: true
+
+# Package
+azure_arc_package_state: present
+azure_arc_version: ""
+
+# Repository. Set azure_arc_manage_repository to false when the host already gets azcmagent
+# from a local mirror, Red Hat Satellite or similar.
+azure_arc_manage_repository: true
+azure_arc_repository_url: https://packages.microsoft.com
+azure_arc_repository_path: ""
+azure_arc_remove_repository: false
+
+# Where the server goes in Azure.
+azure_arc_tenant_id: ""
+azure_arc_subscription_id: ""
+azure_arc_resource_group: ""
+azure_arc_location: ""
+azure_arc_cloud: AzureCloud
+azure_arc_resource_name: ""
+azure_arc_tags: {}
+azure_arc_private_link_scope_id: ""
+azure_arc_gateway_id: ""
+
+# How the agent signs in to connect and disconnect: service_principal_secret,
+# service_principal_certificate or access_token. Credentials reach the agent in a root-only
+# configuration file that is deleted straight after use, never on the command line.
+azure_arc_auth_method: service_principal_secret
+azure_arc_service_principal_id: ""
+azure_arc_service_principal_secret: ""
+azure_arc_service_principal_certificate_file: ""
+azure_arc_access_token: ""
+
+# A server already connected somewhere other than the target above stops the role. Set this
+# to true to disconnect it and connect it to the target instead.
+azure_arc_reconnect: false
+
+# Disconnect without deleting the resource in Azure (azcmagent disconnect
+# --force-local-only), for example when the resource was already deleted. Applies to
+# absent, and to azure_arc_reconnect.
+azure_arc_disconnect_local_only: false
+
+# Local agent settings (azcmagent config). Each one is left as it is unless you set it, so
+# these are examples, not defaults:
+#
+# azure_arc_config_mode: monitor                  # or full
+# azure_arc_extensions_enabled: true
+# azure_arc_extensions_allowlist:                 # [] clears it
+#   - Microsoft.Azure.Monitor/AzureMonitorLinuxAgent
+# azure_arc_extensions_blocklist: []
+# azure_arc_guest_configuration_enabled: false
+# azure_arc_incoming_connections_enabled: false
+# azure_arc_incoming_connections_ports: [22]
+# azure_arc_proxy_url: http://proxy.example.com:8080   # "" clears it
+# azure_arc_proxy_bypass: [Arc]
+azure_arc_config_extra: {}

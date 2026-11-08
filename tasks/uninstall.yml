@@ -1,0 +1,29 @@
+---
+# Microsoft's uninstall: apt purge on Debian and Ubuntu, a package removal elsewhere.
+# Microsoft's uninstall guide removes the server's extensions from Azure before this step.
+# The repository stays unless azure_arc_remove_repository is true, because other
+# Microsoft agents (Defender for Endpoint, for example) use the same one.
+
+- name: Purge the azcmagent package
+  ansible.builtin.apt:
+    name: azcmagent
+    state: absent
+    purge: true
+  when: ansible_facts['pkg_mgr'] == 'apt'
+
+- name: Remove the azcmagent package
+  ansible.builtin.package:
+    name: azcmagent
+    state: absent
+  when: ansible_facts['pkg_mgr'] != 'apt'
+
+- name: Remove the repository definition
+  ansible.builtin.file:
+    path: >-
+      {{ '/etc/apt/sources.list.d/microsoft-prod.list'
+         if ansible_facts['pkg_mgr'] == 'apt'
+         else __azure_arc_rpm_repo_dir ~ '/microsoft-prod.repo' }}
+    state: absent
+  when:
+    - azure_arc_manage_repository | bool
+    - azure_arc_remove_repository | bool

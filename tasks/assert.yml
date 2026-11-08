@@ -1,0 +1,86 @@
+---
+# Types and allowed values are checked by meta/argument_specs.yml before this runs. These
+# checks cover what the specification cannot express.
+
+- name: Gather the facts the role needs
+  ansible.builtin.setup:
+    gather_subset:
+      - "!all"
+      - "!min"
+      - distribution
+      - pkg_mgr
+      - service_mgr
+      - architecture
+  when: >-
+    ansible_facts['os_family'] is not defined
+    or ansible_facts['pkg_mgr'] is not defined
+    or ansible_facts['service_mgr'] is not defined
+    or ansible_facts['architecture'] is not defined
+
+- name: Check the host is supported
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] in __azure_arc_supported_os_families
+      - ansible_facts['distribution'] != 'Fedora'
+      - ansible_facts['architecture'] in __azure_arc_supported_architectures
+      - ansible_facts['service_mgr'] == 'systemd'
+    fail_msg: >-
+      The Azure Connected Machine agent needs a supported RHEL, Debian, Ubuntu, SUSE or Amazon
+      Linux distribution with systemd. This host is {{ ansible_facts['distribution'] }}
+      {{ ansible_facts['distribution_version'] }} on {{ ansible_facts['architecture'] }} with
+      {{ ansible_facts['service_mgr'] }}.
+    quiet: true
+
+- name: Check where the server goes in Azure
+  ansible.builtin.assert:
+    that:
+      - azure_arc_tenant_id | length > 0
+      - azure_arc_subscription_id | length > 0
+      - azure_arc_resource_group | length > 0
+      - azure_arc_location | length > 0
+    fail_msg: >-
+      Connecting needs azure_arc_tenant_id, azure_arc_subscription_id,
+      azure_arc_resource_group and azure_arc_location. Set azure_arc_connect to false to
+      install the agent without connecting it.
+    quiet: true
+  when:
+    - azure_arc_state == 'present'
+    - azure_arc_connect | bool
+
+- name: Check the credentials for the chosen sign-in method
+  ansible.builtin.include_tasks: assert_credentials.yml
+  when:
+    - azure_arc_state == 'present'
+    - azure_arc_connect | bool
+
+- name: Check the tags can be passed to azcmagent
+  ansible.builtin.assert:
+    that:
+      - item.key is match('^[^,=\s]+$')
+      - (item.value | string) is not search("[,']")
+    fail_msg: >-
+      Tag '{{ item.key }}' cannot be passed to azcmagent connect: names cannot contain commas,
+      equals signs or spaces, and values cannot contain commas or single quotes. Set it in
+      Azure after the server is connected instead.
+    quiet: true
+  loop: "{{ azure_arc_tags | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+
+- name: Check monitor mode is not combined with settings it locks
+  ansible.builtin.assert:
+    that:
+      - __azure_arc_full_mode_only_set | length == 0
+    fail_msg: >-
+      In monitor mode the agent manages {{ __azure_arc_full_mode_only | join(', ') }} itself and
+      refuses changes to them, but {{ __azure_arc_full_mode_only_set | join(', ') }} is set.
+      Leave them unset, or use config mode full with your own lists.
+    quiet: true
+  when: azure_arc_config_mode | default('') == 'monitor'
+
+- name: Check a pinned version is not combined with latest
+  ansible.builtin.assert:
+    that:
+      - not (azure_arc_version | length > 0 and azure_arc_package_state == 'latest')
+    fail_msg: azure_arc_version pins a version, so azure_arc_package_state must be present.
+    quiet: true
