@@ -63,7 +63,7 @@ Microsoft documents its own role, [`azure.azcollection.azure_arc`](https://learn
 |---|---|
 | Control node | `ansible-core` 2.16 or later. |
 | Collections | `community.general`, for SUSE hosts only (`ansible.builtin.package` hands over to `community.general.zypper` there). The `ansible` package already includes it. |
-| Managed nodes | A [supported distribution](#supported-platforms) with systemd, and a Python that your `ansible-core` supports. SLES 15 ships Python 3.6, so install `python311` and set `ansible_python_interpreter: /usr/bin/python3.11`. |
+| Managed nodes | A [supported distribution](#supported-platforms) with systemd, and a Python that your `ansible-core` supports. RHEL 8 and SLES 15 ship Python 3.6, which ansible-core 2.17 and later cannot use: see [Python on managed nodes](./docs/using-without-galaxy.md#on-managed-nodes). |
 | Privileges | `become: true`. |
 | Where | Servers outside Azure. Microsoft does not support Azure Arc on Azure VMs, Azure Stack Hub or Azure Stack Edge, except to [evaluate it on an Azure VM](https://learn.microsoft.com/en-us/azure/azure-arc/servers/plan-evaluate-on-azure-virtual-machine). |
 | Network | HTTPS to `packages.microsoft.com` (or your mirror) and to the Azure Arc endpoints ([Microsoft Learn: Network requirements](https://learn.microsoft.com/en-us/azure/azure-arc/servers/network-requirements)), directly, through a proxy, a private link scope or an Arc gateway. |
@@ -102,6 +102,8 @@ roles:
     scm: git
     version: 1.0.0
 ```
+
+Without Galaxy, or to keep a copy inside your organisation, see [Using the role without Galaxy](./docs/using-without-galaxy.md). It covers git, release archives, requirements files that point at your own servers, AWX and Automation Controller, execution environments, and managed nodes with Python 3.6 such as RHEL 8.
 
 ## Quick start
 
@@ -371,6 +373,7 @@ azure_arc_remove_repository: true   # only if nothing else on the server uses pa
 
 | Symptom | What to check |
 |---|---|
+| `The module interpreter '/usr/bin/python3' was not found` or `Module result deserialization failed`, on the first task | The host only has Python 3.6 (RHEL 8, SLES 15), which ansible-core 2.17 and later cannot use. Every module fails, not only this role's. See [Python on managed nodes](./docs/using-without-galaxy.md#on-managed-nodes). |
 | `azcmagent connect failed with exit code ...` and an `AZCM` code | The message shows the agent's own error. Microsoft explains each code at [aka.ms/arc/azcmerror](https://aka.ms/arc/azcmerror). `AZCM0041` (failed to get an access token) usually means a wrong tenant, client ID or secret, or an expired secret or token. |
 | `This server is already connected as ...` | It is connected to a different target. Check its `host_vars` and `group_vars` with `ansible-inventory --host`, or set `azure_arc_reconnect: true` to move it. |
 | The role reports the server connected elsewhere when it is not | `azure_arc_subscription_id` is a name rather than the ID, or `azure_arc_location` is spelt differently from the region name Azure uses. |
