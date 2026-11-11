@@ -381,6 +381,37 @@ azure_arc_config_mode: monitor
 
 Run again with `azure_arc_connect: true` (the default) and the target variables to connect. For golden images, Microsoft's guidance is to connect each server after it is cloned or built from the image, because two agents with the same identity behave inconsistently.
 
+### Install from package files, without Microsoft's repository
+
+For hosts that cannot reach `packages.microsoft.com`, or a quick test of a particular build, push the `azcmagent` package from the control node with [libre_devops.standalone_package_installer](https://github.com/libre-devops/ansible-role-standalone-package-installer) and turn this role's repository management off. The package's signature is checked against Microsoft's keys, which this role ships in `files/`, and dependencies come from the hosts' own repositories (the distribution's, Satellite or a mirror):
+
+```yaml
+- name: Azure Arc agent from package files
+  hosts: rhel9
+  become: true
+  roles:
+    - role: libre_devops.standalone_package_installer
+      vars:
+        standalone_package_installer_files:
+          - files/arc/azcmagent-*.x86_64.rpm
+        standalone_package_installer_gpg_keys:
+          - files/keys/microsoft.asc
+          - files/keys/microsoft-2025.asc
+    - role: libre_devops.azure_arc
+      vars:
+        azure_arc_manage_repository: false
+        # ... the target and sign-in variables, as in the Quick start
+```
+
+Download the package on a machine that can reach the repository, with the same release as the hosts:
+
+```bash
+dnf --repofrompath=ms,https://packages.microsoft.com/rhel/9/prod --setopt=ms.gpgcheck=0 \
+  install --downloadonly --downloaddir=files/arc azcmagent
+```
+
+The package installer pushes nothing when the same version is installed already, so later runs only configure. On 11 November 2026 this ran on AlmaLinux 9 with `azcmagent` 1.70.03595 and `azure_arc_connect: false`: the agent installed with its signature checked and no Microsoft repository, and a second run changed nothing. For anything you keep, prefer a mirror of the repository with `azure_arc_repository_url`.
+
 ### Through a proxy
 
 ```yaml
