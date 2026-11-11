@@ -48,9 +48,10 @@ test scenario="default" platform="": deps
 test-all: deps
     for s in $(just scenarios); do just test "$s"; done
 
-# Converge a scenario and leave the instance running: just converge default debian12
+# Run a scenario on one platform and leave the instance running, pass or fail: just converge default debian12
+# (molecule converge cannot pick a platform, so this runs the whole test and skips the destroy)
 converge scenario platform: deps
-    uv run molecule converge -s '{{ scenario }}' --platform-name '{{ platform_prefix }}{{ platform }}'
+    uv run molecule test -s '{{ scenario }}' --platform-name '{{ platform_prefix }}{{ platform }}' --destroy never
 
 # Open a shell in a running instance: just login default debian12
 login scenario platform:

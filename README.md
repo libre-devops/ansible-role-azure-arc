@@ -394,7 +394,7 @@ You need [uv](https://docs.astral.sh/uv/), [just](https://github.com/casey/just)
 | `just lint` | `yamllint`, `ansible-lint` on the production profile, and `zizmor` on the workflows. |
 | `just test [scenario] [platform]` | Runs a Molecule scenario on one platform, or on all of them. `just test monitor ubuntu2404`. |
 | `just test-all` | Every scenario on every platform, one after another. |
-| `just converge <scenario> <platform>` | Converges and leaves the container running. `just login` opens a shell in it, `just destroy` removes it. |
+| `just converge <scenario> <platform>` | Runs a scenario on one platform and leaves the container running, pass or fail. `just login` opens a shell in it, `just destroy` removes it. |
 | `just live <inventory> [args]` | Runs [`examples/playbook.yml`](./examples/playbook.yml) against real servers, connecting them. |
 | `just check-keys` | Checks the bundled keys match the fingerprints the role trusts. |
 | `just secrets` | Scans the git history with gitleaks. |
