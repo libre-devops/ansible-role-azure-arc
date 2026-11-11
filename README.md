@@ -411,7 +411,7 @@ Every platform runs systemd as PID 1 in a podman container, built from the vendo
 
 1. Move the Unreleased entries in [`CHANGELOG.md`](./CHANGELOG.md) under the new version.
 2. Run `just release 1.2.3`. It tags the commit and pushes the tag.
-3. The Release workflow creates the GitHub release and imports the tag into Galaxy, which takes the version from the tag. It needs the `GALAXY_API_KEY` repository secret.
+3. The Release workflow creates the GitHub release and imports the tag into Galaxy, which takes the version from the tag. It needs the `GALAXY_API_KEY` secret, which the libre-devops organisation provides. If the import fails, fix the cause and run the Release workflow by hand with the tag to import it again.
 
 ## Sources
 
