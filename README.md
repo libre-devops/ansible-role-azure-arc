@@ -13,7 +13,7 @@ Installs and locks down the Azure Connected Machine agent (`azcmagent`) on Linux
 
 [![CI](https://github.com/libre-devops/ansible-role-azure-arc/actions/workflows/ci.yml/badge.svg)](https://github.com/libre-devops/ansible-role-azure-arc/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/libre-devops/ansible-role-azure-arc?sort=semver&label=release)](https://github.com/libre-devops/ansible-role-azure-arc/releases/latest)
-[![Galaxy](https://img.shields.io/badge/galaxy-libre__devops.azure__arc-EE0000?logo=ansible&logoColor=white)](https://galaxy.ansible.com/ui/standalone/roles/libre_devops/azure_arc/)
+[![Galaxy](https://img.shields.io/badge/galaxy-libre__devops.azure__arc-EE0000?logo=ansible&logoColor=white)](https://galaxy.ansible.com/ui/standalone/roles/libre_devops/azure_arc/documentation/)
 [![Licence](https://img.shields.io/github/license/libre-devops/ansible-role-azure-arc)](./LICENSE)
 
 ---
